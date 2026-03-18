@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'football_api' => [
+        'base_url' => env('FOOTBALL_API_BASE_URL'),
+        'key' => env('FOOTBALL_API_KEY'), // Let's add the key slot now too!
+    ],
+
 ];
