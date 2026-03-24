@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class League extends Model
@@ -34,10 +34,14 @@ class League extends Model
     }
 
 
-    // The idea here is to enables us to access all the Clubs of a specific League from the League model
-    public function clubs(): HasMany
+    // This enables us to access all the Clubs of a specific League from the League model
+    // It also includes the season column from the pivot table
+    // This is a BelongsToMany relationship because a League can have many Clubs
+    // and a Club can belong to many Leagues across seasons
+    // The pivot table is 'club_league' and it has a 'season' column
+    // This allows us to easily track which clubs were in which league during which season
+    public function clubs(): BelongsToMany
     {
-        // A league can have many clubs, and a club can belong to one league
-        return $this->hasMany(Club::class);
+        return $this->belongsToMany(Club::class, 'club_league')->withPivot('season')->withTimestamps();
     }
 }

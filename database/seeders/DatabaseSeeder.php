@@ -35,25 +35,32 @@ class DatabaseSeeder extends Seeder
 
         // 3 Create the Clubs (The big three)
         $pirates = Club::create([
-            'league_id' => $league->id,
             'name' => 'Orlando Pirates',
             'short_code' => 'ORL',
             'api_id' => 1001
         ]);
+        // attach() is the BelongsToMany method for inserting into the pivot table
+        // first argument = the related model's id
+        // second argument = the extra pivot columns you want to set (season in this case)
+        $pirates->leagues()->attach($league->id, ['season' => 2025]);
+
 
         $chiefs = Club::create([
-            'league_id' => $league->id,
             'name' => 'Kaizer Chiefs',
             'short_code' => 'KZC',
             'api_id' => 1002
         ]);
+        $chiefs->leagues()->attach($league->id, ['season' => 2025]);
 
         $sundowns = Club::create([
-            'league_id' => $league->id,
             'name' => 'Mamelodi Sundowns',
             'short_code' => 'MSD',
             'api_id' => 1003
         ]);
+        $sundowns->leagues()->attach($league->id, ['season' => 2025]);
+
+
+
 
 
         // 4. Create a 'Bridge' (Fixture)  - The Soweto Derby
