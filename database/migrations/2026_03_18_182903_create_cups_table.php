@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('country');
             $table->string('logo_url');
+            $table->unsignedBigInteger('api_id')->unique()->nullable();
             $table->timestamps();
         });
     }

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Club extends Model
 {
     /********** Allowed Columns **********/
-    protected $fillable = ['name', 'league_id', 'logo_url'];
+    protected $fillable = ['name', 'league_id', 'logo_url', 'short_code', 'api_id'];
 
 
     /********** Relationships - who it shares data with **********/
