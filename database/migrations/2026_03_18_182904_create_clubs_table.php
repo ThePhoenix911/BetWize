@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('logo_url')->nullable();
             $table->unsignedBigInteger('api_id')->unique()->nullable();
             $table->timestamps();
-        });
+        })
     }
 
     /**
