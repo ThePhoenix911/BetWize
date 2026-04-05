@@ -4,67 +4,91 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+
+
+// WHAT: The fixtures table stores every match — past, present, and future.
+// KEY CONCEPT — POLYMORPHIC RELATIONSHIP:
+//   A fixture (match) can belong to EITHER a League OR a Cup.
+//   Approach 1 (bad): Two nullable columns — league_id and cup_id.
+//     Problem: One will always be null. Confusing. Hard to query.
+//   Approach 2 (good — what we use): Polymorphism.
+//     Two columns: competition_id (the ID) + competition_type (which table).
+//     Example row: competition_id=3, competition_type='App\Models\League'
+//     Another row: competition_id=1, competition_type='App\Models\Cup'
+//   Laravel reads both columns together and knows exactly which model to load.
+//
+// VANILLA EQUIVALENT:
+//   It's like having a "reference" column that says:
+//   "Look up ID 3 in the leagues table" or "Look up ID 1 in the cups table"
+//   based on what's in the type column.
+
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('fixtures', function (Blueprint $table) {
-            // HIGHEST LEVEL: The Primary Key
             $table->id();
 
-            // MID LEVEL: The Competition Link (Polymorphism)
-            // Instead of separate 'league_id' and 'cup_id' columns, we use 'morphs' (a polymorphic relationship)
-            // WHY: This creates TWO Columns: 'competition_id' and 'competition_type'
-            // HOW: It allows a fixture to belong to a 'League' or 'Cup' using the same logic
-            // EXAMPLE: A fixture can belong to a League (with 'competition_type' as 'league') or a Cup (with 'competition_type' as 'cup')
-            // We passed the 'competition' parameter to specify the relationship name
-            // This will create 'competition_id' and 'competition_type' columns
-            // 'competition_id' will either be a League or Cup ID, depending on 'competition_type'
-            // 'competition_type' will either be 'App\Models\League' or 'App\Models\Cup'
+            // WHAT: Creates TWO columns: competition_id and competition_type.
+            // HOW: morphs('competition') is Laravel shorthand for:
+            //      $table->unsignedBigInteger('competition_id');
+            //      $table->string('competition_type');
+            //      Plus an index on both columns together for fast queries.
+            // WHY: 'competition' is the RELATIONSHIP NAME — it names the two columns.
+            //      competition_id holds the actual ID (e.g. 3)
+            //      competition_type holds the model class (e.g. 'App\Models\League')
+            //      Together they tell Laravel: "Go fetch League with id=3"
             $table->morphs('competition');
 
-            // MID LEVEL: The team relationships (Foreign Keys)
-            // 'home_team_id' and 'away_team_id' point to the 'id' column in the 'clubs' table
-            // WHY: 'constrained' ensures you can't have a match between clubs that don't exist/
-            // 'cascadeOnDelete' ensures that if a club is deleted, all its fixtures are also deleted
+            // WHAT: The home team's club ID.
+            // HOW: foreignId()->constrained('clubs') adds a foreign key to the clubs table.
+            //      We pass 'clubs' explicitly because Laravel can't guess which table
+            //      from a column name like 'home_team_id' (it would guess 'home_teams').
+            // WHY: cascadeOnDelete() means if a club is deleted, its fixtures go too.
+            //      Without this, deleting a club would leave orphan rows referencing a ghost club.
             $table->foreignId('home_team_id')->constrained('clubs')->cascadeOnDelete();
+
+            // WHAT: The away team's club ID. Same pattern as home_team_id.
             $table->foreignId('away_team_id')->constrained('clubs')->cascadeOnDelete();
 
-            // LOW LEVEL: Match Details
-            // 'match_at' stores the date and time of the match
+            // WHAT: The scheduled date and time of the match.
+            // HOW: dateTime() creates a DATETIME column (date + time together).
+            // WHY: We need both date AND time (e.g. 2025-03-29 15:30:00)
+            //      because multiple matches can happen on the same day.
             $table->dateTime('match_at');
 
-            // 'status' tracks the game state (e.g., 'NS' for not started, 'LIVE', 'FT' for finished)
+            // WHAT: The current state of the match.
+            // HOW: default('NS') means new rows automatically get 'NS' if status isn't provided.
+            // WHY: API-Football status codes we care about:
+            //      'NS'  = Not Started (scheduled future match)
+            //      '1H'  = First Half (live)
+            //      'HT'  = Half Time (live)
+            //      '2H'  = Second Half (live)
+            //      'FT'  = Full Time (finished)
+            //      'PST' = Postponed
             $table->string('status')->default('NS');
 
-
-            // LOW LEVEL: Match Results
-            // 'home_score' and 'away_score' store the scores of the match
-            // WHY: These columns allow us to track the outcome of the match
-            // EXAMPLE: If 'home_score' is 2 and 'away_score' is 1, the home team won
-            // 'nullable' allows these to stay empty until the game starts
+            // WHAT: The home team's goal count.
+            // HOW: integer() creates an INT column. nullable() allows NULL.
+            // WHY: Before a match starts, there is no score — NULL is correct.
+            //      During and after the match, this gets updated to a number.
+            //      0 is different from NULL: 0 means "they scored zero goals",
+            //      NULL means "the match hasn't started yet".
             $table->integer('home_score')->nullable();
             $table->integer('away_score')->nullable();
 
-            // 'api_id' stores the unique identifier for the fixture from the API
-            // This is our Anchor to the outside world
-            // We use this to check if we've already imported the match from the API
-            // unsignedBigInteger ensures it's a positive number - we used the unsignedBigInteger method to create a positive integer column
-            // The 'Scout' (API importer) will run every hour.
-            // The unique constraint ensures we don't import the same match twice
+            // WHAT: API-Football's unique ID for this fixture.
+            // HOW: unique() ensures no two rows have the same api_id.
+            // WHY: This is the KEY to the entire import system.
+            //      updateOrCreate uses api_id to decide: "does this fixture already exist?"
+            //      If yes → update it (e.g. score changed from null to 2-1)
+            //      If no  → create it (new fixture we haven't seen before)
+            //      Without this, we'd create duplicate fixtures on every import run.
             $table->unsignedBigInteger('api_id')->unique()->nullable();
-
 
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('fixtures');
