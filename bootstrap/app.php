@@ -15,11 +15,4 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })
-    ->booting(function () {
-        // Load test routes during testing environment
-        if (app()->environment('testing')) {
-            require base_path('routes/test.php');
-        }
-    })
-    ->create();
+    })->create();
