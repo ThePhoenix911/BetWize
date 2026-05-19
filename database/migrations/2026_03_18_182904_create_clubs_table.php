@@ -41,7 +41,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('api_id')->unique()->nullable();
 
             $table->timestamps();
-        })
+        });
     }
 
     public function down(): void
